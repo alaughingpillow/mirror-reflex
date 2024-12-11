@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Side-by-Side Defense</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="main-menu">
+            <h1>Side-by-Side Defense</h1>
+            <button id="start-button">Start Game</button>
+        </div>
+        <div id="game-area" style="display: none;">
+            <div id="player1" class="player"></div>
+            <div id="player2" class="player"></div>
+            <div id="divider"></div>
+            <button id="shop-button">Shop</button>
+        </div>
+        <div id="score">Score: <span id="score-value">0</span></div>
+        <div id="coins">Coins: <span id="coins-value">0</span></div>
+        <div id="shop-menu" style="display: none;">
+            <h2>Shop</h2>
+            <div class="shop-item">
+                <button id="buy-speed">Speed Boost (10 coins)</button>
+            </div>
+            <div class="shop-item">
+                <button id="buy-size">Size Reduction (15 coins)</button>
+            </div>
+            <div class="shop-item">
+                <button id="buy-magnet">Coin Magnet (20 coins)</button>
+            </div>
+            <div class="shop-item">
+                <button id="gamble-button">Gamble (5 coins)</button>
+            </div>
+            <button id="close-shop">Close</button>
+        </div>
+        <button id="restart-button" style="display: none;">Restart</button>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

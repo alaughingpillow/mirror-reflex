@@ -1,0 +1,218 @@
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #ecf0f1;
+    font-family: 'Poppins', sans-serif;
+    color: #2c3e50;
+    overflow: hidden;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    height: 600px;
+    background: linear-gradient(to bottom, #a29bfe, #6c5ce7);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+}
+
+#game-area {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+#main-menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(236, 240, 241, 0.95);
+    z-index: 10;
+    border-radius: 20px;
+}
+
+h1 {
+    font-size: 48px;
+    color: #fff;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+}
+
+button {
+    font-size: 24px;
+    padding: 12px 24px;
+    background-color: #f39c12;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s, box-shadow 0.3s;
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    background-color: #e67e22;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 16px rgba(0, 0, 0, 0.2);
+}
+
+button:active {
+    transform: translateY(1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+#restart-button {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    font-size: 22px;
+    padding: 10px 20px;
+    background-color: #27ae60;
+    border-radius: 50px;
+}
+
+#player1, #player2 {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle at 30% 30%, #ff9ff3, #f78fb3);
+    border-radius: 50%;
+    bottom: 30px;
+    transform: translateX(-50%);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease-in-out;
+}
+
+#player1 {
+    left: 25%;
+}
+
+#player2 {
+    left: 75%;
+}
+
+#divider {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.enemy {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle at 30% 30%, #f39c12, #d35400);
+    border-radius: 50%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+#score {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 30px;
+    color: #fff;
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+    font-family: 'Poppins', sans-serif;
+}
+
+#shop-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 11;
+    font-size: 18px;
+    padding: 8px 16px;
+    background-color: #8e44ad;
+    border-radius: 50px;
+    transition: background-color 0.3s;
+}
+
+#shop-button:hover {
+    background-color: #9b59b6;
+}
+
+#shop-menu {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 25px;
+    border-radius: 20px;
+    z-index: 20;
+    width: 80%;
+    max-width: 300px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.shop-item {
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #2c3e50;
+}
+
+#coins {
+    position: absolute;
+    top: 10px;
+    right: 100px;
+    font-size: 30px;
+    color: #f1c40f;
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+#gamble-button {
+    background-color: #8e44ad;
+    border-radius: 50px;
+    padding: 12px 20px;
+}
+
+#gamble-button:hover {
+    background-color: #9b59b6;
+}
+
+#gamble-button:disabled {
+    background-color: #d2b4de;
+}
+
+#coins, #score {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+}

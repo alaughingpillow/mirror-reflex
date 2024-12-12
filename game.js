@@ -1,4 +1,4 @@
-const gameContainer = document.getElementById('game-container');
+onst gameContainer = document.getElementById('game-container');
 const mainMenu = document.getElementById('main-menu');
 const gameArea = document.getElementById('game-area');
 const startButton = document.getElementById('start-button');
@@ -20,6 +20,9 @@ const controlsMenu = document.getElementById('controls-menu');
 const closeControlsButton = document.getElementById('close-controls');
 const pauseButton = document.getElementById('pause-button');
 const mainMenuButton = document.getElementById('main-menu-button');
+gameContainer.addEventListener('touchstart', handleTouchStart);
+gameContainer.addEventListener('touchmove', handleTouchMove);
+gameContainer.addEventListener('touchend', handleTouchEnd);
 
 let gameActive = false;
 let gamePaused = false;
@@ -128,7 +131,57 @@ function startEnemySpawning() {
         }
     }, 1000);
 }
+// Variables to track touch events
+let touchStartX = 0;
+let touchEndX = 0;
+let isSwiping = false;
 
+function handleTouchStart(event) {
+    if (!gameActive || gamePaused) return;
+
+    const rect = gameContainer.getBoundingClientRect();
+    touchStartX = event.touches[0].clientX - rect.left;
+    isSwiping = true;
+}
+
+function handleTouchMove(event) {
+    if (!gameActive || gamePaused || !isSwiping) return;
+
+    const rect = gameContainer.getBoundingClientRect();
+    touchEndX = event.touches[0].clientX - rect.left;
+    const diffX = touchEndX - touchStartX;
+
+    if (diffX > 0) {
+        // Swipe right
+        updatePlayerPositions(touchEndX);
+    } else if (diffX < 0) {
+        // Swipe left
+        updatePlayerPositions(touchEndX);
+    }
+}
+
+function handleTouchEnd(event) {
+    if (!gameActive || gamePaused) return;
+
+    isSwiping = false;
+}
+
+// Update player positions based on swipe direction
+function updatePlayerPositions(x) {
+    const halfWidth = gameContainer.clientWidth / 2;
+
+    if (x < halfWidth) {
+        player1X = Math.max(25, Math.min(halfWidth - 25, x));
+    } else {
+        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
+    }
+
+    player1.style.left = `${player1X}px`;
+    player2.style.left = `${player2X}px`;
+}
+
+// Add event listener for play button
+startButton.addEventListener('touchstart', startGame);
 function spawnEnemy() {
     if (!gameActive) return;
 
@@ -367,17 +420,24 @@ function gamble() {
         const chance = Math.random();
         sounds.powerSurge.play();
         
+        // Define the win and lose amounts
+        const WIN_AMOUNT_HIGH = 20; // 10% chance of winning 20 coins
+        const WIN_AMOUNT_MEDIUM = 10; // 20% chance of winning 10 coins
+        const WIN_AMOUNT_LOW = 5; // 20% chance of winning 5 coins
+        const WIN_AMOUNT_MIN = 2; // 20% chance of winning 2 coins
+        const LOSE_AMOUNT = -5; // 70% chance of losing 30 coins
+        
         let winAmount = 0;
-        if (chance < 0.1) { // 20% chance of winning 20 coins
-            winAmount = 20;
+        if (chance < 0.1) { // 10% chance of winning 20 coins
+            winAmount = WIN_AMOUNT_HIGH;
         } else if (chance < 0.3) { // 20% chance of winning 10 coins
-            winAmount = 10;
+            winAmount = WIN_AMOUNT_MEDIUM;
         } else if (chance < 0.5) { // 20% chance of winning 5 coins
-            winAmount = 5;
+            winAmount = WIN_AMOUNT_LOW;
         } else if (chance < 0.7) { // 20% chance of winning 2 coins
-            winAmount = 2;
-        } else if (chance <0.5){ // 70% chance of losing
-            winAmount = -30;
+            winAmount = WIN_AMOUNT_MIN;
+        } else { // 70% chance of losing
+            winAmount = LOSE_AMOUNT;
         }
     
         
@@ -462,3 +522,4 @@ mainMenuButton.addEventListener('click', backToMainMenu);
 // Initialize game state
 gambleMenu.style.display = 'none';
 updateCoins();
+

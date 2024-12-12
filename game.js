@@ -7,47 +7,51 @@ const player1 = document.getElementById('player1');
 const player2 = document.getElementById('player2');
 const scoreElement = document.getElementById('score-value');
 const coinsElement = document.getElementById('coins-value');
-const shopButton = document.getElementById('shop-button');
-const shopMenu = document.getElementById('shop-menu');
-const closeShopButton = document.getElementById('close-shop');
-const buySpeedButton = document.getElementById('buy-speed');
-const buySizeButton = document.getElementById('buy-size');
-const buyMagnetButton = document.getElementById('buy-magnet');
 const gambleButton = document.getElementById('gamble-button');
+const gambleMenu = document.getElementById('gamble-menu');
+const gambleActionButton = document.getElementById('gamble-action');
+const closeGambleButton = document.getElementById('close-gamble');
+const gambleResult = document.getElementById('gamble-result');
+const instructionsButton = document.getElementById('instructions-button');
+const instructionsMenu = document.getElementById('instructions-menu');
+const closeInstructionsButton = document.getElementById('close-instructions');
+const controlsButton = document.getElementById('controls-button');
+const controlsMenu = document.getElementById('controls-menu');
+const closeControlsButton = document.getElementById('close-controls');
+const pauseButton = document.getElementById('pause-button');
+const mainMenuButton = document.getElementById('main-menu-button');
 
 let gameActive = false;
+let gamePaused = false;
 let player1X = gameContainer.clientWidth * 0.25;
 let player2X = gameContainer.clientWidth * 0.75;
 let score = 0;
-let coins = 0;
+let coins = parseInt(localStorage.getItem('coins')) || 0;
 let enemies = [];
 let powerups = [];
-
-// Player upgrades
-let playerSpeed = 1;
-let playerSize = 50;
-let hasCoinMagnet = false;
+let enemySpawnInterval;
 
 // Sound effects
 const sounds = {
     coinCollect: new Audio('/sounds/coin-collect.mp3'),
     enemyHit: new Audio('/sounds/enemy-hit.mp3'),
-    upgrade: new Audio('/sounds/upgrade.mp3'),
-    gamble: new Audio('/sounds/gamble.mp3')
+    powerSurge: new Audio('/sounds/power-surge.mp3')
 };
 
 function startGame() {
     mainMenu.style.display = 'none';
     gameArea.style.display = 'block';
     restartButton.style.display = 'none';
-    shopButton.style.display = 'block';
+    gambleButton.style.display = 'block';
+    pauseButton.style.display = 'block';
+    mainMenuButton.style.display = 'block';
     gameActive = true;
+    gamePaused = false;
     score = 0;
-    coins = 0;
     updateScore();
     updateCoins();
     gameLoop();
-    spawnEnemies();
+    startEnemySpawning();
     spawnPowerups();
 }
 
@@ -57,31 +61,39 @@ function restartGame() {
     enemies = [];
     powerups = [];
     score = 0;
-    coins = 0;
-    playerSpeed = 1;
-    playerSize = 50;
-    hasCoinMagnet = false;
     updateScore();
     updateCoins();
     player1X = gameContainer.clientWidth * 0.25;
     player2X = gameContainer.clientWidth * 0.75;
     updatePlayerPositions();
     gameActive = true;
+    gamePaused = false;
     restartButton.style.display = 'none';
-    shopButton.style.display = 'block';
+    gambleButton.style.display = 'block';
+    pauseButton.style.display = 'block';
+    mainMenuButton.style.display = 'block';
     gameLoop();
-    spawnEnemies();
+    startEnemySpawning();
     spawnPowerups();
+    
+    // Remove game over message if it exists
+    const gameOverMessage = document.getElementById('game-over-message');
+    if (gameOverMessage) {
+        gameOverMessage.remove();
+    }
 }
 
-function updatePlayerPositions() {
+function updatePlayerPositions(x) {
     const halfWidth = gameContainer.clientWidth / 2;
-    player1.style.left = `${Math.max(playerSize / 2, Math.min(halfWidth - playerSize / 2, player1X))}px`;
-    player2.style.left = `${Math.max(halfWidth + playerSize / 2, Math.min(gameContainer.clientWidth - playerSize / 2, player2X))}px`;
-    player1.style.width = `${playerSize}px`;
-    player1.style.height = `${playerSize}px`;
-    player2.style.width = `${playerSize}px`;
-    player2.style.height = `${playerSize}px`;
+
+    if (x < halfWidth) {
+        player1X = Math.max(25, Math.min(halfWidth - 25, x));
+    } else {
+        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
+    }
+
+    player1.style.left = `${player1X}px`;
+    player2.style.left = `${player2X}px`;
 }
 
 function updateScore() {
@@ -90,21 +102,34 @@ function updateScore() {
 
 function updateCoins() {
     coinsElement.textContent = coins;
-    updateShopButtons(); // Update buttons when coins change
+    localStorage.setItem('coins', coins.toString());
 }
 
 function gameLoop() {
     if (!gameActive) return;
-
-    moveEnemies();
-    movePowerups();
-    checkCollisions();
-    updatePlayerPositions();
-
+    if (!gamePaused) {
+        moveEnemies();
+        movePowerups();
+        checkCollisions();
+        updateScore();
+        updateCoins();
+    }
     requestAnimationFrame(gameLoop);
 }
 
-function spawnEnemies() {
+function startEnemySpawning() {
+    if (enemySpawnInterval) {
+        clearInterval(enemySpawnInterval);
+    }
+    
+    enemySpawnInterval = setInterval(() => {
+        if (!gamePaused && gameActive) {
+            spawnEnemy();
+        }
+    }, 1000);
+}
+
+function spawnEnemy() {
     if (!gameActive) return;
 
     const enemy = document.createElement('div');
@@ -113,9 +138,6 @@ function spawnEnemies() {
     enemy.style.top = '0px';
     gameArea.appendChild(enemy);
     enemies.push(enemy);
-
-    const difficulty = Math.min(1 + score / 100, 2);
-    setTimeout(spawnEnemies, 1000 / difficulty);
 }
 
 function spawnPowerups() {
@@ -125,22 +147,21 @@ function spawnPowerups() {
     powerup.classList.add('powerup');
     powerup.style.left = `${Math.random() * (gameContainer.clientWidth - 20)}px`;
     powerup.style.top = '0px';
-    powerup.style.width = '20px';
-    powerup.style.height = '20px';
-    powerup.style.borderRadius = '50%';
-    powerup.style.backgroundColor = '#f1c40f';
-    powerup.style.position = 'absolute';
     gameArea.appendChild(powerup);
     powerups.push(powerup);
 
-    setTimeout(spawnPowerups, 5000);
+    setTimeout(() => {
+        if (!gamePaused && gameActive) {
+            spawnPowerups();
+        }
+    }, 5000);
 }
 
 function moveEnemies() {
-    const difficulty = Math.min(1 + score / 100, 2);
     enemies.forEach((enemy, index) => {
         const top = parseFloat(enemy.style.top) || 0;
-        enemy.style.top = `${top + 2 * difficulty}px`;
+        enemy.style.top = `${top + 2}px`;
+        enemy.style.transform = `translateY(${top}px)`;
 
         if (top > gameContainer.clientHeight) {
             enemy.remove();
@@ -149,6 +170,28 @@ function moveEnemies() {
             updateScore();
         }
     });
+}function updatePlayerPositions(x) {
+    const halfWidth = gameContainer.clientWidth / 2;
+
+    if (x < halfWidth) {
+        player1X = Math.max(25, Math.min(halfWidth - 25, x));
+    } else {
+        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
+    }
+
+    player1.style.left = `${player1X}px`;
+    player2.style.left = `${player2X}px`;
+}function updatePlayerPositions(x) {
+    const halfWidth = gameContainer.clientWidth / 2;
+
+    if (x < halfWidth) {
+        player1X = Math.max(25, Math.min(halfWidth - 25, x));
+    } else {
+        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
+    }
+
+    player1.style.left = `${player1X}px`;
+    player2.style.left = `${player2X}px`;
 }
 
 function movePowerups() {
@@ -164,49 +207,44 @@ function movePowerups() {
 }
 
 function checkCollisions() {
+    if (!gameActive) return;
+
     const player1Rect = player1.getBoundingClientRect();
     const player2Rect = player2.getBoundingClientRect();
 
-    enemies.forEach((enemy, index) => {
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
         const enemyRect = enemy.getBoundingClientRect();
 
-        if (
-            (enemyRect.left < player1Rect.right &&
-            enemyRect.right > player1Rect.left &&
-            enemyRect.bottom > player1Rect.top &&
-            enemyRect.top < player1Rect.bottom) ||
-            (enemyRect.left < player2Rect.right &&
-            enemyRect.right > player2Rect.left &&
-            enemyRect.bottom > player2Rect.top &&
-            enemyRect.top < player2Rect.bottom)
-        ) {
+        if (isCollision(enemyRect, player1Rect) || isCollision(enemyRect, player2Rect)) {
             sounds.enemyHit.play();
             gameOver();
+            return;
         }
-    });
+    }
 
-    powerups.forEach((powerup, index) => {
+    for (let i = powerups.length - 1; i >= 0; i--) {
+        const powerup = powerups[i];
         const powerupRect = powerup.getBoundingClientRect();
 
-        if (
-            (powerupRect.left < player1Rect.right &&
-            powerupRect.right > player1Rect.left &&
-            powerupRect.bottom > player1Rect.top &&
-            powerupRect.top < player1Rect.bottom) ||
-            (powerupRect.left < player2Rect.right &&
-            powerupRect.right > player2Rect.left &&
-            powerupRect.bottom > player2Rect.top &&
-            powerupRect.top < player2Rect.bottom) ||
-            (hasCoinMagnet && powerupRect.bottom > gameContainer.clientHeight - 100)
-        ) {
+        if (isCollision(powerupRect, player1Rect) || isCollision(powerupRect, player2Rect)) {
             powerup.remove();
-            powerups.splice(index, 1);
+            powerups.splice(i, 1);
             coins += 5;
             updateCoins();
             createCoinParticles(powerupRect.left, powerupRect.top);
             sounds.coinCollect.play();
         }
-    });
+    }
+}
+
+function isCollision(rect1, rect2) {
+    return (
+        rect1.left < rect2.right &&
+        rect1.right > rect2.left &&
+        rect1.top < rect2.bottom &&
+        rect1.bottom > rect2.top
+    );
 }
 
 function createCoinParticles(x, y) {
@@ -217,7 +255,7 @@ function createCoinParticles(x, y) {
         particle.style.top = `${y}px`;
         particle.style.width = '5px';
         particle.style.height = '5px';
-        particle.style.backgroundColor = '#f1c40f';
+        particle.style.backgroundColor = '#ffd54f';
         particle.style.borderRadius = '50%';
         gameArea.appendChild(particle);
 
@@ -253,81 +291,73 @@ function animateParticle(particle, angle, speed) {
 
 function gameOver() {
     gameActive = false;
+    gamePaused = true;
+    clearInterval(enemySpawnInterval);
     restartButton.style.display = 'block';
-    shopButton.style.display = 'none';
+    gambleButton.style.display = 'none';
+    pauseButton.style.display = 'none';
+    mainMenuButton.style.display = 'block';
+    gambleMenu.style.display = 'none';
+
+    // Clear all existing enemies and powerups
+    enemies.forEach(enemy => enemy.remove());
+    powerups.forEach(powerup => powerup.remove());
+    enemies = [];
+    powerups = [];
+
+    // Display game over message
+    const gameOverMessage = document.createElement('div');
+    gameOverMessage.id = 'game-over-message';
+    gameOverMessage.textContent = 'Game Over! Earth has fallen.';
+    gameOverMessage.style.position = 'absolute';
+    gameOverMessage.style.top = '50%';
+    gameOverMessage.style.left = '50%';
+    gameOverMessage.style.transform = 'translate(-50%, -50%)';
+    gameOverMessage.style.fontSize = '24px';
+    gameOverMessage.style.color = '#ff5252';
+    gameOverMessage.style.textAlign = 'center';
+    gameArea.appendChild(gameOverMessage);
 }
 
 function handleMouseMove(event) {
-    if (!gameActive) return;
+    if (!gameActive || gamePaused) return;
 
     const rect = gameContainer.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
-    const halfWidth = rect.width / 2;
-
-    if (mouseX < halfWidth) {
-        player1X = Math.max(playerSize / 2, Math.min(halfWidth - playerSize / 2, mouseX));
-    } else {
-        player2X = Math.max(halfWidth + playerSize / 2, Math.min(rect.width - playerSize / 2, mouseX));
-    }
+    updatePlayerPositions(mouseX);
 }
 
 function handleTouchMove(event) {
-    if (!gameActive) return;
+    if (!gameActive || gamePaused) return;
     event.preventDefault();
 
     const rect = gameContainer.getBoundingClientRect();
-    const halfWidth = rect.width / 2;
-
-    for (let i = 0; i < event.touches.length; i++) {
-        const touch = event.touches[i];
-        const touchX = touch.clientX - rect.left;
-
-        if (touchX < halfWidth) {
-            player1X = Math.max(playerSize / 2, Math.min(halfWidth - playerSize / 2, touchX));
-        } else {
-            player2X = Math.max(halfWidth + playerSize / 2, Math.min(rect.width - playerSize / 2, touchX));
-        }
-    }
+    const touch = event.touches[0];
+    const touchX = touch.clientX - rect.left;
+    updatePlayerPositions(touchX);
 }
 
-function toggleShop() {
-    if (shopMenu.style.display === 'none') {
-        shopMenu.style.display = 'block';
-        gameActive = false;
+function resizeGame() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    gameContainer.style.width = `${width}px`;
+    gameContainer.style.height = `${height}px`;
+    player1X = gameContainer.clientWidth * 0.25;
+    player2X = gameContainer.clientWidth * 0.75;
+    updatePlayerPositions();
+}
+
+window.addEventListener('resize', resizeGame);
+resizeGame();
+
+function toggleGamble() {
+    if (gambleMenu.style.display === 'none') {
+        gambleMenu.style.display = 'block';
+        gamePaused = true;
     } else {
-        shopMenu.style.display = 'none';
-        gameActive = true;
+        gambleMenu.style.display = 'none';
+        gamePaused = false;
         gameLoop();
-    }
-}
-
-function buySpeedBoost() {
-    if (coins >= 10) {
-        coins -= 10;
-        playerSpeed += 0.2;
-        updateCoins();
-        updateShopButtons();
-        sounds.upgrade.play();
-    }
-}
-
-function buySizeReduction() {
-    if (coins >= 15 && playerSize > 30) {
-        coins -= 15;
-        playerSize -= 5;
-        updateCoins();
-        updateShopButtons();
-        sounds.upgrade.play();
-    }
-}
-
-function buyCoinMagnet() {
-    if (coins >= 20 && !hasCoinMagnet) {
-        coins -= 20;
-        hasCoinMagnet = true;
-        updateCoins();
-        updateShopButtons();
-        sounds.upgrade.play();
     }
 }
 
@@ -335,43 +365,100 @@ function gamble() {
     if (coins >= 5) {
         coins -= 5;
         const chance = Math.random();
-        sounds.gamble.play();
+        sounds.powerSurge.play();
         
         let winAmount = 0;
-        if (chance < 0.4) {
+        if (chance < 0.1) { // 20% chance of winning 20 coins
+            winAmount = 20;
+        } else if (chance < 0.3) { // 20% chance of winning 10 coins
             winAmount = 10;
-        } else if (chance < 0.6) {
-            winAmount = 15;
-        } else if (chance < 0.8) {
+        } else if (chance < 0.5) { // 20% chance of winning 5 coins
             winAmount = 5;
+        } else if (chance < 0.7) { // 20% chance of winning 2 coins
+            winAmount = 2;
+        } else if (chance <0.5){ // 70% chance of losing
+            winAmount = -30;
         }
+    
         
         coins += winAmount;
         
-        const resultMessage = winAmount > 0 ? `You won ${winAmount} coins!` : "Sorry, you lost this time.";
-        alert(resultMessage);
+        const resultMessage = winAmount > 0 ? `Power surge successful! Gained ${winAmount} cosmic coins!` : "Power surge failed. No boost received.";
+        gambleResult.textContent = resultMessage;
         
         updateCoins();
-        updateShopButtons();
     }
 }
 
-function updateShopButtons() {
-    buySpeedButton.disabled = coins < 10;
-    buySizeButton.disabled = coins < 15 || playerSize <= 30;
-    buyMagnetButton.disabled = coins < 20 || hasCoinMagnet;
-    gambleButton.disabled = coins < 5 || !gameActive; // Disable gamble button if not enough coins or game is inactive
+function showInstructions() {
+    instructionsMenu.style.display = 'block';
+    gamePaused = true;
+}
+
+function showControls() {
+    controlsMenu.style.display = 'block';
+    gamePaused = true;
+}
+
+function togglePause() {
+    gamePaused = !gamePaused;
+    if (!gamePaused) {
+        gameLoop();
+    }
+    pauseButton.textContent = gamePaused ? 'Resume' : 'Pause';
+}
+
+function backToMainMenu() {
+    gameActive = false;
+    gamePaused = false;
+    clearInterval(enemySpawnInterval);
+    enemies.forEach(enemy => enemy.remove());
+    powerups.forEach(powerup => powerup.remove());
+    enemies = [];
+    powerups = [];
+    mainMenu.style.display = 'flex';
+    gameArea.style.display = 'none';
+    gambleMenu.style.display = 'none';
+    instructionsMenu.style.display = 'none';
+    controlsMenu.style.display = 'none';
+    restartButton.style.display = 'none';
+    pauseButton.textContent = 'Pause';
+    score = 0;
+    updateScore();
+    player1X = gameContainer.clientWidth * 0.25;
+    player2X = gameContainer.clientWidth * 0.75;
+    updatePlayerPositions();
+    
+    // Remove game over message if it exists
+    const gameOverMessage = document.getElementById('game-over-message');
+    if (gameOverMessage) {
+        gameOverMessage.remove();
+    }
 }
 
 startButton.addEventListener('click', startGame);
 restartButton.addEventListener('click', restartGame);
-shopButton.addEventListener('click', toggleShop);
-closeShopButton.addEventListener('click', toggleShop);
+gameContainer.addEventListener('mousemove', handleMouseMove);
+gameContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+gameContainer.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+gambleButton.addEventListener('click', toggleGamble);
+gambleActionButton.addEventListener('click', gamble);
+closeGambleButton.addEventListener('click', toggleGamble);
+instructionsButton.addEventListener('click', showInstructions);
+closeInstructionsButton.addEventListener('click', () => {
+    instructionsMenu.style.display = 'none';
+    gamePaused = false;
+    gameLoop();
+});
+controlsButton.addEventListener('click', showControls);
+closeControlsButton.addEventListener('click', () => {
+    controlsMenu.style.display = 'none';
+    gamePaused = false;
+    gameLoop();
+});
+pauseButton.addEventListener('click', togglePause);
+mainMenuButton.addEventListener('click', backToMainMenu);
 
-buySpeedButton.addEventListener('click', buySpeedBoost);
-buySizeButton.addEventListener('click', buySizeReduction);
-buyMagnetButton.addEventListener('click', buyCoinMagnet);
-gambleButton.addEventListener('click', gamble);
-
-document.addEventListener('mousemove', handleMouseMove);
-document.addEventListener('touchmove', handleTouchMove);
+// Initialize game state
+gambleMenu.style.display = 'none';
+updateCoins();

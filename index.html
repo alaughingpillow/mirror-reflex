@@ -3,41 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Side-by-Side Defense</title>
+    <title>Cosmic Defenders</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="game-container">
         <div id="main-menu">
-            <h1>Side-by-Side Defense</h1>
-            <button id="start-button">Start Game</button>
+            <h1>Cosmic Defenders</h1>
+            <p class="narrative">Earth's last hope rests with you! Pilot the twin defense ships and protect our planet from the relentless alien invasion. Collect cosmic coins to power up your defenses!</p>
+            <button id="start-button">Start Mission</button>
+            <button id="instructions-button">Mission Briefing</button>
+            <button id="controls-button">Ship Controls</button>
         </div>
         <div id="game-area" style="display: none;">
             <div id="player1" class="player"></div>
             <div id="player2" class="player"></div>
             <div id="divider"></div>
-            <button id="shop-button">Shop</button>
+            <div id="score">Aliens Defeated: <span id="score-value">0</span></div>
+            <div id="coins">Cosmic Coins: <span id="coins-value">0</span></div>
+            <button id="gamble-button">Power Surge</button>
         </div>
-        <div id="score">Score: <span id="score-value">0</span></div>
-        <div id="coins">Coins: <span id="coins-value">0</span></div>
-        <div id="shop-menu" style="display: none;">
-            <h2>Shop</h2>
-            <div class="shop-item">
-                <button id="buy-speed">Speed Boost (10 coins)</button>
-            </div>
-            <div class="shop-item">
-                <button id="buy-size">Size Reduction (15 coins)</button>
-            </div>
-            <div class="shop-item">
-                <button id="buy-magnet">Coin Magnet (20 coins)</button>
-            </div>
-            <div class="shop-item">
-                <button id="gamble-button">Gamble (5 coins)</button>
-            </div>
-            <button id="close-shop">Close</button>
+        <div id="gamble-menu" class="menu" style="display: none;">
+            <h2>Power Surge</h2>
+            <p>Risk 5 cosmic coins for a chance to supercharge your defenses!</p>
+            <button id="gamble-action">Activate (5 coins)</button>
+            <p id="gamble-result"></p>
+            <button id="close-gamble">Return to Battle</button>
         </div>
-        <button id="restart-button" style="display: none;">Restart</button>
+        <div id="instructions-menu" class="menu" style="display: none;">
+            <h2>Mission Briefing</h2>
+            <p>Defend Earth from waves of alien invaders. Move your twin ships to avoid collisions and collect cosmic coins for power-ups. The longer you survive, the stronger Earth's defenses become!</p>
+            <button id="close-instructions">Ready for Action</button>
+        </div>
+        <div id="controls-menu" class="menu" style="display: none;">
+            <h2>Ship Controls</h2>
+            <p>Use your mouse or touch to move both defense ships simultaneously. Left side of the screen controls the left ship, right side controls the right ship.</p>
+            <button id="close-controls">Got It</button>
+        </div>
+        <button id="restart-button" style="display: none;">Relaunch Mission</button>
+        <button id="pause-button" style="display: none;">Pause</button>
+        <button id="main-menu-button" style="display: none;">Return to Base</button>
     </div>
     <script src="game.js"></script>
 </body>
 </html>
+
+

@@ -2,6 +2,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    touch-action: none;
 }
 
 body {
@@ -12,6 +13,7 @@ body {
     min-height: 100vh;
     background: linear-gradient(135deg, #000000 0%, #1a237e 100%);
     color: #ffffff;
+    overflow: hidden;
 }
 
 #game-container {
@@ -79,39 +81,6 @@ button:hover {
 
 button:active {
     transform: translateY(0);
-}
-
-button:disabled {
-    background: linear-gradient(45deg, #b8b8b8, #d1d1d1);
-    cursor: not-allowed;
-}
-
-#difficulty-selector {
-    margin: 20px 0;
-    font-size: 16px;
-    color: white;
-}
-
-#difficulty {
-    font-size: 16px;
-    padding: 8px 12px;
-    border-radius: 25px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    background-color: rgba(0, 0, 0, 0.3);
-    color: white;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-#difficulty:hover, #difficulty:focus {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-color: white;
-}
-
-#difficulty option {
-    background-color: #000000;
-    color: white;
 }
 
 .player {
@@ -265,6 +234,23 @@ button:disabled {
     #score, #coins {
         font-size: 16px;
     }
+
+    .narrative {
+        font-size: 14px;
+    }
+
+    .menu {
+        width: 90%;
+        max-width: none;
+    }
+}
+
+.projectile {
+    position: absolute;
+    width: 5px;
+    height: 15px;
+    background-color: #ffeb3b;
+    border-radius: 50%;
 }
 
 

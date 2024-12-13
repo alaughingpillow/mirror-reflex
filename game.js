@@ -1,7 +1,11 @@
-onst gameContainer = document.getElementById('game-container');
+let gameLoopId;
+
+const gameContainer = document.getElementById('game-container');
 const mainMenu = document.getElementById('main-menu');
 const gameArea = document.getElementById('game-area');
 const startButton = document.getElementById('start-button');
+const instructionsButton = document.getElementById('instructions-button');
+const controlsButton = document.getElementById('controls-button');
 const restartButton = document.getElementById('restart-button');
 const player1 = document.getElementById('player1');
 const player2 = document.getElementById('player2');
@@ -12,17 +16,12 @@ const gambleMenu = document.getElementById('gamble-menu');
 const gambleActionButton = document.getElementById('gamble-action');
 const closeGambleButton = document.getElementById('close-gamble');
 const gambleResult = document.getElementById('gamble-result');
-const instructionsButton = document.getElementById('instructions-button');
 const instructionsMenu = document.getElementById('instructions-menu');
 const closeInstructionsButton = document.getElementById('close-instructions');
-const controlsButton = document.getElementById('controls-button');
 const controlsMenu = document.getElementById('controls-menu');
 const closeControlsButton = document.getElementById('close-controls');
 const pauseButton = document.getElementById('pause-button');
 const mainMenuButton = document.getElementById('main-menu-button');
-gameContainer.addEventListener('touchstart', handleTouchStart);
-gameContainer.addEventListener('touchmove', handleTouchMove);
-gameContainer.addEventListener('touchend', handleTouchEnd);
 
 let gameActive = false;
 let gamePaused = false;
@@ -32,7 +31,14 @@ let score = 0;
 let coins = parseInt(localStorage.getItem('coins')) || 0;
 let enemies = [];
 let powerups = [];
+let projectiles = [];
 let enemySpawnInterval;
+let lastFrameTime = 0;
+
+const ENEMY_SPAWN_RATE = 1000; // 1 second
+const ENEMY_SPEED = 300; // pixels per second (increased from 200)
+const POWERUP_SPAWN_RATE = 5000; // 5 seconds
+const PROJECTILE_SPEED = 300; // pixels per second
 
 // Sound effects
 const sounds = {
@@ -53,6 +59,7 @@ function startGame() {
     score = 0;
     updateScore();
     updateCoins();
+    lastFrameTime = performance.now();
     gameLoop();
     startEnemySpawning();
     spawnPowerups();
@@ -61,8 +68,10 @@ function startGame() {
 function restartGame() {
     enemies.forEach(enemy => enemy.remove());
     powerups.forEach(powerup => powerup.remove());
+    projectiles.forEach(projectile => projectile.remove());
     enemies = [];
     powerups = [];
+    projectiles = [];
     score = 0;
     updateScore();
     updateCoins();
@@ -75,11 +84,11 @@ function restartGame() {
     gambleButton.style.display = 'block';
     pauseButton.style.display = 'block';
     mainMenuButton.style.display = 'block';
+    lastFrameTime = performance.now();
     gameLoop();
     startEnemySpawning();
     spawnPowerups();
     
-    // Remove game over message if it exists
     const gameOverMessage = document.getElementById('game-over-message');
     if (gameOverMessage) {
         gameOverMessage.remove();
@@ -108,16 +117,20 @@ function updateCoins() {
     localStorage.setItem('coins', coins.toString());
 }
 
-function gameLoop() {
+function gameLoop(currentTime) {
     if (!gameActive) return;
+
+    const deltaTime = (currentTime - lastFrameTime) / 1000;
+    lastFrameTime = currentTime;
+
     if (!gamePaused) {
-        moveEnemies();
-        movePowerups();
+        moveEnemies(deltaTime);
+        movePowerups(deltaTime);
+        moveProjectiles(deltaTime);
         checkCollisions();
-        updateScore();
-        updateCoins();
     }
-    requestAnimationFrame(gameLoop);
+
+    gameLoopId = requestAnimationFrame(gameLoop);
 }
 
 function startEnemySpawning() {
@@ -129,59 +142,9 @@ function startEnemySpawning() {
         if (!gamePaused && gameActive) {
             spawnEnemy();
         }
-    }, 1000);
-}
-// Variables to track touch events
-let touchStartX = 0;
-let touchEndX = 0;
-let isSwiping = false;
-
-function handleTouchStart(event) {
-    if (!gameActive || gamePaused) return;
-
-    const rect = gameContainer.getBoundingClientRect();
-    touchStartX = event.touches[0].clientX - rect.left;
-    isSwiping = true;
+    }, ENEMY_SPAWN_RATE);
 }
 
-function handleTouchMove(event) {
-    if (!gameActive || gamePaused || !isSwiping) return;
-
-    const rect = gameContainer.getBoundingClientRect();
-    touchEndX = event.touches[0].clientX - rect.left;
-    const diffX = touchEndX - touchStartX;
-
-    if (diffX > 0) {
-        // Swipe right
-        updatePlayerPositions(touchEndX);
-    } else if (diffX < 0) {
-        // Swipe left
-        updatePlayerPositions(touchEndX);
-    }
-}
-
-function handleTouchEnd(event) {
-    if (!gameActive || gamePaused) return;
-
-    isSwiping = false;
-}
-
-// Update player positions based on swipe direction
-function updatePlayerPositions(x) {
-    const halfWidth = gameContainer.clientWidth / 2;
-
-    if (x < halfWidth) {
-        player1X = Math.max(25, Math.min(halfWidth - 25, x));
-    } else {
-        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
-    }
-
-    player1.style.left = `${player1X}px`;
-    player2.style.left = `${player2X}px`;
-}
-
-// Add event listener for play button
-startButton.addEventListener('touchstart', startGame);
 function spawnEnemy() {
     if (!gameActive) return;
 
@@ -204,57 +167,94 @@ function spawnPowerups() {
     powerups.push(powerup);
 
     setTimeout(() => {
-        if (!gamePaused && gameActive) {
+        if (gameActive) {
             spawnPowerups();
         }
-    }, 5000);
+    }, POWERUP_SPAWN_RATE);
 }
 
-function moveEnemies() {
+function moveEnemies(deltaTime) {
     enemies.forEach((enemy, index) => {
-        const top = parseFloat(enemy.style.top) || 0;
-        enemy.style.top = `${top + 2}px`;
-        enemy.style.transform = `translateY(${top}px)`;
+        const oldTop = parseFloat(enemy.style.top) || 0;
+        const newTop = oldTop + ENEMY_SPEED * deltaTime;
+        enemy.style.top = `${newTop}px`;
 
-        if (top > gameContainer.clientHeight) {
+        // Check for collision along the path of movement
+        if (checkEnemyCollision(enemy, oldTop, newTop)) {
+            gameOver();
+            return;
+        }
+
+        if (newTop > gameContainer.clientHeight) {
             enemy.remove();
             enemies.splice(index, 1);
             score++;
             updateScore();
         }
     });
-}function updatePlayerPositions(x) {
-    const halfWidth = gameContainer.clientWidth / 2;
-
-    if (x < halfWidth) {
-        player1X = Math.max(25, Math.min(halfWidth - 25, x));
-    } else {
-        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
-    }
-
-    player1.style.left = `${player1X}px`;
-    player2.style.left = `${player2X}px`;
-}function updatePlayerPositions(x) {
-    const halfWidth = gameContainer.clientWidth / 2;
-
-    if (x < halfWidth) {
-        player1X = Math.max(25, Math.min(halfWidth - 25, x));
-    } else {
-        player2X = Math.max(halfWidth + 25, Math.min(gameContainer.clientWidth - 25, x));
-    }
-
-    player1.style.left = `${player1X}px`;
-    player2.style.left = `${player2X}px`;
 }
 
-function movePowerups() {
+function checkEnemyCollision(enemy, oldTop, newTop) {
+    const enemyRect = enemy.getBoundingClientRect();
+    const player1Rect = player1.getBoundingClientRect();
+    const player2Rect = player2.getBoundingClientRect();
+
+    // Adjust collision box size (reduce by 25% on each side)
+    const adjustCollisionBox = (rect) => {
+        const widthReduction = rect.width * 0.25;
+        const heightReduction = rect.height * 0.25;
+        return {
+            left: rect.left + widthReduction,
+            right: rect.right - widthReduction,
+            top: rect.top + heightReduction,
+            bottom: rect.bottom - heightReduction
+        };
+    };
+
+    const adjustedEnemyRect = adjustCollisionBox(enemyRect);
+    const adjustedPlayer1Rect = adjustCollisionBox(player1Rect);
+    const adjustedPlayer2Rect = adjustCollisionBox(player2Rect);
+
+    // Check if the enemy's path intersects with either player
+    if (
+        (adjustedEnemyRect.left < adjustedPlayer1Rect.right &&
+        adjustedEnemyRect.right > adjustedPlayer1Rect.left &&
+        oldTop <= adjustedPlayer1Rect.bottom &&
+        newTop >= adjustedPlayer1Rect.top) ||
+        (adjustedEnemyRect.left < adjustedPlayer2Rect.right &&
+        adjustedEnemyRect.right > adjustedPlayer2Rect.left &&
+        oldTop <= adjustedPlayer2Rect.bottom &&
+        newTop >= adjustedPlayer2Rect.top)
+    ) {
+        sounds.enemyHit.play();
+        return true;
+    }
+
+    return false;
+}
+
+function movePowerups(deltaTime) {
     powerups.forEach((powerup, index) => {
         const top = parseFloat(powerup.style.top) || 0;
-        powerup.style.top = `${top + 1}px`;
+        const newTop = top + 50 * deltaTime; // 50 pixels per second
+        powerup.style.top = `${newTop}px`;
 
-        if (top > gameContainer.clientHeight) {
+        if (newTop > gameContainer.clientHeight) {
             powerup.remove();
             powerups.splice(index, 1);
+        }
+    });
+}
+
+function moveProjectiles(deltaTime) {
+    projectiles.forEach((projectile, index) => {
+        const top = parseFloat(projectile.style.top) || 0;
+        const newTop = top - PROJECTILE_SPEED * deltaTime;
+        projectile.style.top = `${newTop}px`;
+
+        if (newTop < 0) {
+            projectile.remove();
+            projectiles.splice(index, 1);
         }
     });
 }
@@ -269,10 +269,19 @@ function checkCollisions() {
         const enemy = enemies[i];
         const enemyRect = enemy.getBoundingClientRect();
 
-        if (isCollision(enemyRect, player1Rect) || isCollision(enemyRect, player2Rect)) {
-            sounds.enemyHit.play();
-            gameOver();
-            return;
+        for (let j = projectiles.length - 1; j >= 0; j--) {
+            const projectile = projectiles[j];
+            const projectileRect = projectile.getBoundingClientRect();
+
+            if (isCollision(enemyRect, projectileRect)) {
+                enemy.remove();
+                enemies.splice(i, 1);
+                projectile.remove();
+                projectiles.splice(j, 1);
+                score += 10;
+                updateScore();
+                break;
+            }
         }
     }
 
@@ -292,11 +301,25 @@ function checkCollisions() {
 }
 
 function isCollision(rect1, rect2) {
+    const adjustCollisionBox = (rect) => {
+        const widthReduction = rect.width * 0.25;
+        const heightReduction = rect.height * 0.25;
+        return {
+            left: rect.left + widthReduction,
+            right: rect.right - widthReduction,
+            top: rect.top + heightReduction,
+            bottom: rect.bottom - heightReduction
+        };
+    };
+
+    const adjusted1 = adjustCollisionBox(rect1);
+    const adjusted2 = adjustCollisionBox(rect2);
+
     return (
-        rect1.left < rect2.right &&
-        rect1.right > rect2.left &&
-        rect1.top < rect2.bottom &&
-        rect1.bottom > rect2.top
+        adjusted1.left < adjusted2.right &&
+        adjusted1.right > adjusted2.left &&
+        adjusted1.top < adjusted2.bottom &&
+        adjusted1.bottom > adjusted2.top
     );
 }
 
@@ -344,7 +367,6 @@ function animateParticle(particle, angle, speed) {
 
 function gameOver() {
     gameActive = false;
-    gamePaused = true;
     clearInterval(enemySpawnInterval);
     restartButton.style.display = 'block';
     gambleButton.style.display = 'none';
@@ -352,13 +374,13 @@ function gameOver() {
     mainMenuButton.style.display = 'block';
     gambleMenu.style.display = 'none';
 
-    // Clear all existing enemies and powerups
     enemies.forEach(enemy => enemy.remove());
     powerups.forEach(powerup => powerup.remove());
+    projectiles.forEach(projectile => projectile.remove());
     enemies = [];
     powerups = [];
+    projectiles = [];
 
-    // Display game over message
     const gameOverMessage = document.createElement('div');
     gameOverMessage.id = 'game-over-message';
     gameOverMessage.textContent = 'Game Over! Earth has fallen.';
@@ -370,6 +392,9 @@ function gameOver() {
     gameOverMessage.style.color = '#ff5252';
     gameOverMessage.style.textAlign = 'center';
     gameArea.appendChild(gameOverMessage);
+
+    // Stop the game loop
+    cancelAnimationFrame(gameLoopId);
 }
 
 function handleMouseMove(event) {
@@ -390,18 +415,17 @@ function handleTouchMove(event) {
     updatePlayerPositions(touchX);
 }
 
-function resizeGame() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    gameContainer.style.width = `${width}px`;
-    gameContainer.style.height = `${height}px`;
-    player1X = gameContainer.clientWidth * 0.25;
-    player2X = gameContainer.clientWidth * 0.75;
-    updatePlayerPositions();
+function handleTouchStart(event) {
+    event.preventDefault();
+    const touch = event.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (element && element.tagName === 'BUTTON') {
+        element.click();
+    } else if (gameActive && !gamePaused) {
+        handleShoot(event);
+    }
 }
-
-window.addEventListener('resize', resizeGame);
-resizeGame();
 
 function toggleGamble() {
     if (gambleMenu.style.display === 'none') {
@@ -410,7 +434,8 @@ function toggleGamble() {
     } else {
         gambleMenu.style.display = 'none';
         gamePaused = false;
-        gameLoop();
+        lastFrameTime = performance.now();
+        gameLoop(lastFrameTime);
     }
 }
 
@@ -420,34 +445,89 @@ function gamble() {
         const chance = Math.random();
         sounds.powerSurge.play();
         
-        // Define the win and lose amounts
-        const WIN_AMOUNT_HIGH = 20; // 10% chance of winning 20 coins
-        const WIN_AMOUNT_MEDIUM = 10; // 20% chance of winning 10 coins
-        const WIN_AMOUNT_LOW = 5; // 20% chance of winning 5 coins
-        const WIN_AMOUNT_MIN = 2; // 20% chance of winning 2 coins
-        const LOSE_AMOUNT = -5; // 70% chance of losing 30 coins
-        
         let winAmount = 0;
-        if (chance < 0.1) { // 10% chance of winning 20 coins
-            winAmount = WIN_AMOUNT_HIGH;
-        } else if (chance < 0.3) { // 20% chance of winning 10 coins
-            winAmount = WIN_AMOUNT_MEDIUM;
-        } else if (chance < 0.5) { // 20% chance of winning 5 coins
-            winAmount = WIN_AMOUNT_LOW;
-        } else if (chance < 0.7) { // 20% chance of winning 2 coins
-            winAmount = WIN_AMOUNT_MIN;
-        } else { // 70% chance of losing
-            winAmount = LOSE_AMOUNT;
+        let resultMessage = '';
+
+        if (chance < 0.01) {
+            winAmount = 100;
+            resultMessage = "Jackpot! Cosmic alignment achieved! Gained 100 coins!";
+        } else if (chance < 0.1) {
+            winAmount = 25;
+            resultMessage = "Major power surge! Gained 25 coins!";
+        } else if (chance < 0.3) {
+            winAmount = 10;
+            resultMessage = "Power surge successful! Gained 10 coins!";
+        } else if (chance < 0.6) {
+            winAmount = 5;
+            resultMessage = "Minor power boost. Gained 5 coins.";
+        } else {
+            resultMessage = "Power surge failed. No boost received.";
         }
-    
         
         coins += winAmount;
         
-        const resultMessage = winAmount > 0 ? `Power surge successful! Gained ${winAmount} cosmic coins!` : "Power surge failed. No boost received.";
         gambleResult.textContent = resultMessage;
         
         updateCoins();
+
+        // Special effects for big wins
+        if (winAmount >= 25) {
+            createFireworks();
+        }
+    } else {
+        gambleResult.textContent = "Not enough coins for a power surge!";
     }
+}
+
+function createFireworks() {
+    for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+            const particle = document.createElement('div');
+            particle.style.position = 'absolute';
+            particle.style.width = '5px';
+            particle.style.height = '5px';
+            particle.style.backgroundColor= `hsl(${Math.random() * 360}, 100%, 50%)`;
+            particle.style.borderRadius = '50%';
+            particle.style.left = `${Math.random() * gameContainer.clientWidth}px`;
+            particle.style.top = `${Math.random() * gameContainer.clientHeight}px`;
+            gameArea.appendChild(particle);
+
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 100 + 50;
+            const lifetime = Math.random() * 1000 + 500;
+
+            setTimeout(() => {
+                particle.remove();
+            }, lifetime);
+
+            animateFirework(particle, angle, speed);
+        }, Math.random() * 1000);
+    }
+}
+
+function animateFirework(particle, angle, speed) {
+    let x = parseFloat(particle.style.left);
+    let y = parseFloat(particle.style.top);
+    let velocity = speed;
+    const gravity = 98; // pixels per second squared
+
+    function update(time) {
+        const deltaTime = (time - lastFrameTime) / 1000;
+        lastFrameTime = time;
+
+        x += Math.cos(angle) * velocity * deltaTime;
+        y += Math.sin(angle) * velocity * deltaTime;
+        velocity -= gravity * deltaTime;
+
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+
+        if (particle.parentNode) {
+            requestAnimationFrame(update);
+        }
+    }
+
+    requestAnimationFrame(update);
 }
 
 function showInstructions() {
@@ -463,7 +543,8 @@ function showControls() {
 function togglePause() {
     gamePaused = !gamePaused;
     if (!gamePaused) {
-        gameLoop();
+        lastFrameTime = performance.now();
+        gameLoop(lastFrameTime);
     }
     pauseButton.textContent = gamePaused ? 'Resume' : 'Pause';
 }
@@ -474,8 +555,10 @@ function backToMainMenu() {
     clearInterval(enemySpawnInterval);
     enemies.forEach(enemy => enemy.remove());
     powerups.forEach(powerup => powerup.remove());
+    projectiles.forEach(projectile => projectile.remove());
     enemies = [];
     powerups = [];
+    projectiles = [];
     mainMenu.style.display = 'flex';
     gameArea.style.display = 'none';
     gambleMenu.style.display = 'none';
@@ -489,18 +572,48 @@ function backToMainMenu() {
     player2X = gameContainer.clientWidth * 0.75;
     updatePlayerPositions();
     
-    // Remove game over message if it exists
     const gameOverMessage = document.getElementById('game-over-message');
     if (gameOverMessage) {
         gameOverMessage.remove();
     }
 }
 
+function createProjectile(x, y) {
+    if (coins > 0) {
+        const projectile = document.createElement('div');
+        projectile.classList.add('projectile');
+        projectile.style.left = `${x}px`;
+        projectile.style.top = `${y}px`;
+        gameArea.appendChild(projectile);
+        projectiles.push(projectile);
+        coins--;
+        updateCoins();
+    }
+}
+
+function handleShoot(event) {
+    if (!gameActive || gamePaused) return;
+    event.preventDefault();
+
+    const rect = gameContainer.getBoundingClientRect();
+    let shootX, shootY;
+
+    if (event.type === 'click') {
+        shootX = event.clientX - rect.left;
+        shootY = event.clientY - rect.top;
+    } else if (event.type === 'touchstart') {
+        shootX = event.touches[0].clientX - rect.left;
+        shootY = event.touches[0].clientY - rect.top;
+    }
+
+    createProjectile(shootX, gameContainer.clientHeight - 50);
+}
+
 startButton.addEventListener('click', startGame);
 restartButton.addEventListener('click', restartGame);
 gameContainer.addEventListener('mousemove', handleMouseMove);
 gameContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-gameContainer.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+gameContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
 gambleButton.addEventListener('click', toggleGamble);
 gambleActionButton.addEventListener('click', gamble);
 closeGambleButton.addEventListener('click', toggleGamble);
@@ -508,18 +621,26 @@ instructionsButton.addEventListener('click', showInstructions);
 closeInstructionsButton.addEventListener('click', () => {
     instructionsMenu.style.display = 'none';
     gamePaused = false;
-    gameLoop();
+    lastFrameTime = performance.now();
+    gameLoop(lastFrameTime);
 });
 controlsButton.addEventListener('click', showControls);
 closeControlsButton.addEventListener('click', () => {
     controlsMenu.style.display = 'none';
     gamePaused = false;
-    gameLoop();
+    lastFrameTime = performance.now();
+    gameLoop(lastFrameTime);
 });
 pauseButton.addEventListener('click', togglePause);
 mainMenuButton.addEventListener('click', backToMainMenu);
+gameContainer.addEventListener('click', handleShoot);
+gameContainer.addEventListener('touchstart', handleShoot);
 
-// Initialize game state
 gambleMenu.style.display = 'none';
 updateCoins();
+
+// Start the game loop
+lastFrameTime = performance.now();
+gameLoop(lastFrameTime);
+
 

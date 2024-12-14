@@ -283,8 +283,9 @@ button:active {
 
 @media (orientation: portrait) {
     #game-container {
-        transform: scale(0.93);
-        transform-origin: center center;
+        width: 100vw; /* Full width of the viewport */
+        height: 100vh; /* Full height of the viewport */
+        transform: none; /* Remove scaling */
     }
 }
 

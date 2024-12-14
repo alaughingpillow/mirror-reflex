@@ -282,12 +282,11 @@ button:active {
 }
 @media (orientation: portrait) {
     #game-container {
-        width: 100vw;
-        height: calc(100vh - 10vh); /* Subtract space to avoid overlaps */
-        margin: auto; /* Center the game container */
-        transform: none;
+        transform: scale(0.9);
+        transform-origin: center center;
     }
 }
+
 
 
 

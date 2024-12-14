@@ -283,7 +283,7 @@ button:active {
 
 @media (orientation: portrait) {
     #game-container {
-        transform: scale(0.75);
+        transform: scale(0.93);
         transform-origin: center center;
     }
 }

@@ -40,12 +40,120 @@ const ENEMY_SPEED = 300; // pixels per second (increased from 200)
 const POWERUP_SPAWN_RATE = 5000; // 5 seconds
 const PROJECTILE_SPEED = 300; // pixels per second
 
-// Sound effects
+// Sound effects and background music
 const sounds = {
-    coinCollect: new Audio('/sounds/coin-collect.mp3'),
-    enemyHit: new Audio('/sounds/enemy-hit.mp3'),
-    powerSurge: new Audio('/sounds/power-surge.mp3')
+    coinCollect: new Audio('./assets/sounds/coin-collect.mp3'),
+    enemyHit: new Audio('./assets/sounds/enemy-hit.mp3'),
+    powerSurge: new Audio('./assets/sounds/power-surge.mp3'),
+    backgroundMusic1: new Audio('./assets/sounds/background-music-1.mp3'),
+    backgroundMusic2: new Audio('./assets/sounds/background-music-2.mp3'),
+    backgroundMusic3: new Audio('./assets/sounds/background-music-3.mp3'),
+    backgroundMusic4: new Audio('./assets/sounds/background-music-4.mp3')
 };
+
+let currentMusicTrack = 1;
+let isMusicPlaying = false;
+
+function initializeSounds() {
+    Object.values(sounds).forEach(sound => {
+        sound.load();
+        sound.volume = 0.5; // Set volume to 50%
+    });
+
+    // Set all background music tracks to loop
+    for (let i = 1; i <= 4; i++) {
+        sounds[`backgroundMusic${i}`].loop = true;
+    }
+
+    // Try to enable audio on user interaction
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+}
+
+function unlockAudio() {
+    Object.values(sounds).forEach(sound => {
+        sound.play().then(() => {
+            if (!sound.src.includes('background-music')) {
+                sound.pause();
+                sound.currentTime = 0;
+            }
+        }).catch(error => {
+            console.log('Audio play failed:', error);
+        });
+    });
+    document.getElementById('sound-message').style.display = 'none';
+    playBackgroundMusic();
+}
+
+function playBackgroundMusic() {
+    if (!isMusicPlaying) {
+        sounds[`backgroundMusic${currentMusicTrack}`].play().then(() => {
+            isMusicPlaying = true;
+            scheduleNextTrack();
+        }).catch(error => {
+            console.log('Background music play failed:', error);
+        });
+    }
+}
+
+function scheduleNextTrack() {
+    const currentTrack = sounds[`backgroundMusic${currentMusicTrack}`];
+    const trackDuration = 8000; // 8 seconds in milliseconds
+
+    setTimeout(() => {
+        fadeOutCurrentTrack(() => {
+            currentMusicTrack = (currentMusicTrack % 4) + 1;
+            playBackgroundMusic();
+        });
+    }, trackDuration - 1000); // Schedule 1 second before the end for smooth transition
+}
+
+function fadeOutCurrentTrack(callback) {
+    const currentTrack = sounds[`backgroundMusic${currentMusicTrack}`];
+    const fadeOutDuration = 1000; // 1 second fade out
+    const fadeOutInterval = 50; // Update every 50ms
+    const volumeStep = currentTrack.volume / (fadeOutDuration / fadeOutInterval);
+
+    const fadeOutTimer = setInterval(() => {
+        if (currentTrack.volume > volumeStep) {
+            currentTrack.volume -= volumeStep;
+        } else {
+            clearInterval(fadeOutTimer);
+            currentTrack.pause();
+            currentTrack.currentTime = 0;
+            currentTrack.volume = 0.5; // Reset volume for next play
+            isMusicPlaying = false;
+            if (callback) callback();
+        }
+    }, fadeOutInterval);
+}
+
+function pauseBackgroundMusic() {
+    sounds[`backgroundMusic${currentMusicTrack}`].pause();
+    isMusicPlaying = false;
+}
+
+function resumeBackgroundMusic() {
+    if (!isMusicPlaying) {
+        playBackgroundMusic();
+    }
+}
+
+function toggleBackgroundMusic() {
+    if (isMusicPlaying) {
+        pauseBackgroundMusic();
+    } else {
+        resumeBackgroundMusic();
+    }
+    updateMusicToggleButton();
+}
+
+function updateMusicToggleButton() {
+    const musicToggleButton = document.getElementById('music-toggle');
+    if (musicToggleButton) {
+        musicToggleButton.textContent = isMusicPlaying ? 'Mute Music' : 'Play Music';
+    }
+}
 
 function startGame() {
     mainMenu.style.display = 'none';
@@ -63,6 +171,7 @@ function startGame() {
     gameLoop();
     startEnemySpawning();
     spawnPowerups();
+    playBackgroundMusic();
 }
 
 function restartGame() {
@@ -88,11 +197,17 @@ function restartGame() {
     gameLoop();
     startEnemySpawning();
     spawnPowerups();
+    playBackgroundMusic();
     
     const gameOverMessage = document.getElementById('game-over-message');
     if (gameOverMessage) {
         gameOverMessage.remove();
     }
+}
+
+function pauseBackgroundMusic() {
+    sounds[`backgroundMusic${currentMusicTrack}`].pause();
+    isMusicPlaying = false;
 }
 
 function updatePlayerPositions(x) {
@@ -175,12 +290,11 @@ function spawnPowerups() {
 
 function moveEnemies(deltaTime) {
     enemies.forEach((enemy, index) => {
-        const oldTop = parseFloat(enemy.style.top) || 0;
-        const newTop = oldTop + ENEMY_SPEED * deltaTime;
+        const newTop = parseFloat(enemy.style.top) + ENEMY_SPEED * deltaTime;
         enemy.style.top = `${newTop}px`;
 
-        // Check for collision along the path of movement
-        if (checkEnemyCollision(enemy, oldTop, newTop)) {
+        // Check for collision immediately after moving
+        if (checkEnemyCollision(enemy)) {
             gameOver();
             return;
         }
@@ -194,7 +308,7 @@ function moveEnemies(deltaTime) {
     });
 }
 
-function checkEnemyCollision(enemy, oldTop, newTop) {
+function checkEnemyCollision(enemy) {
     const enemyRect = enemy.getBoundingClientRect();
     const player1Rect = player1.getBoundingClientRect();
     const player2Rect = player2.getBoundingClientRect();
@@ -215,18 +329,18 @@ function checkEnemyCollision(enemy, oldTop, newTop) {
     const adjustedPlayer1Rect = adjustCollisionBox(player1Rect);
     const adjustedPlayer2Rect = adjustCollisionBox(player2Rect);
 
-    // Check if the enemy's path intersects with either player
+    // Check if the enemy intersects with either player
     if (
         (adjustedEnemyRect.left < adjustedPlayer1Rect.right &&
         adjustedEnemyRect.right > adjustedPlayer1Rect.left &&
-        oldTop <= adjustedPlayer1Rect.bottom &&
-        newTop >= adjustedPlayer1Rect.top) ||
+        adjustedEnemyRect.top < adjustedPlayer1Rect.bottom &&
+        adjustedEnemyRect.bottom > adjustedPlayer1Rect.top) ||
         (adjustedEnemyRect.left < adjustedPlayer2Rect.right &&
         adjustedEnemyRect.right > adjustedPlayer2Rect.left &&
-        oldTop <= adjustedPlayer2Rect.bottom &&
-        newTop >= adjustedPlayer2Rect.top)
+        adjustedEnemyRect.top < adjustedPlayer2Rect.bottom &&
+        adjustedEnemyRect.bottom > adjustedPlayer2Rect.top)
     ) {
-        sounds.enemyHit.play();
+        sounds.enemyHit.play().catch(e => console.log("Audio play failed:", e));
         return true;
     }
 
@@ -295,7 +409,7 @@ function checkCollisions() {
             coins += 5;
             updateCoins();
             createCoinParticles(powerupRect.left, powerupRect.top);
-            sounds.coinCollect.play();
+            sounds.coinCollect.play().catch(e => console.log("Audio play failed:", e));
         }
     }
 }
@@ -371,8 +485,7 @@ function gameOver() {
     restartButton.style.display = 'block';
     gambleButton.style.display = 'none';
     pauseButton.style.display = 'none';
-    mainMenuButton.style.display = 'block';
-    gambleMenu.style.display = 'none';
+    mainMenuButton.style.display = 'block';gambleMenu.style.display = 'none';
 
     enemies.forEach(enemy => enemy.remove());
     powerups.forEach(powerup => powerup.remove());
@@ -395,6 +508,9 @@ function gameOver() {
 
     // Stop the game loop
     cancelAnimationFrame(gameLoopId);
+    
+    // Pause background music
+    pauseBackgroundMusic();
 }
 
 function handleMouseMove(event) {
@@ -437,13 +553,14 @@ function toggleGamble() {
         lastFrameTime = performance.now();
         gameLoop(lastFrameTime);
     }
+    // Remove pauseBackgroundMusic and playBackgroundMusic calls from here
 }
 
 function gamble() {
     if (coins >= 5) {
         coins -= 5;
         const chance = Math.random();
-        sounds.powerSurge.play();
+        sounds.powerSurge.play().catch(e => console.log("Audio play failed:", e));
         
         let winAmount = 0;
         let resultMessage = '';
@@ -533,11 +650,13 @@ function animateFirework(particle, angle, speed) {
 function showInstructions() {
     instructionsMenu.style.display = 'block';
     gamePaused = true;
+    // Remove pauseBackgroundMusic call from here
 }
 
 function showControls() {
     controlsMenu.style.display = 'block';
     gamePaused = true;
+    // Remove pauseBackgroundMusic call from here
 }
 
 function togglePause() {
@@ -547,6 +666,7 @@ function togglePause() {
         gameLoop(lastFrameTime);
     }
     pauseButton.textContent = gamePaused ? 'Resume' : 'Pause';
+    // Remove pauseBackgroundMusic and playBackgroundMusic calls from here
 }
 
 function backToMainMenu() {
@@ -576,6 +696,8 @@ function backToMainMenu() {
     if (gameOverMessage) {
         gameOverMessage.remove();
     }
+
+    pauseBackgroundMusic();
 }
 
 function createProjectile(x, y) {
@@ -588,7 +710,9 @@ function createProjectile(x, y) {
         projectiles.push(projectile);
         coins--;
         updateCoins();
+        return true;
     }
+    return false;
 }
 
 function handleShoot(event) {
@@ -596,7 +720,7 @@ function handleShoot(event) {
     event.preventDefault();
 
     const rect = gameContainer.getBoundingClientRect();
-    let shootX, shootY;
+    let shootX;
 
     if (event.type === 'click') {
         shootX = event.clientX - rect.left;
@@ -604,10 +728,13 @@ function handleShoot(event) {
         shootX = event.touches[0].clientX - rect.left;
     }
 
-    // Always shoot from the bottom of the game area
-    shootY = gameContainer.clientHeight - 50;
-
-    createProjectile(shootX, shootY);
+    // Determine which player should shoot based on the touch/click position
+    const shooterX = (shootX < rect.width / 2) ? player1X : player2X;
+    
+    if (!createProjectile(shooterX, gameContainer.clientHeight - 50)) {
+        // Optionally, add feedback when out of coins
+        console.log("Out of coins!");
+    }
 }
 
 startButton.addEventListener('click', startGame);
@@ -624,6 +751,7 @@ closeInstructionsButton.addEventListener('click', () => {
     gamePaused = false;
     lastFrameTime = performance.now();
     gameLoop(lastFrameTime);
+    resumeBackgroundMusic();
 });
 controlsButton.addEventListener('click', showControls);
 closeControlsButton.addEventListener('click', () => {
@@ -631,6 +759,7 @@ closeControlsButton.addEventListener('click', () => {
     gamePaused = false;
     lastFrameTime = performance.now();
     gameLoop(lastFrameTime);
+    resumeBackgroundMusic();
 });
 pauseButton.addEventListener('click', togglePause);
 mainMenuButton.addEventListener('click', backToMainMenu);
@@ -640,9 +769,26 @@ gameContainer.addEventListener('touchstart', handleShoot, { passive: false });
 gambleMenu.style.display = 'none';
 updateCoins();
 
+initializeSounds();
+
+// Add a new button for toggling background music
+const musicToggleButton = document.createElement('button');
+musicToggleButton.id = 'music-toggle';
+musicToggleButton.textContent = 'Mute Music';
+musicToggleButton.style.position = 'absolute';
+musicToggleButton.style.bottom = '20px';
+musicToggleButton.style.left = '50%';
+musicToggleButton.style.transform = 'translateX(-50%)';
+musicToggleButton.style.zIndex = '1000';
+musicToggleButton.style.marginBottom = '60px'; // Add space above the other bottom buttons
+gameContainer.appendChild(musicToggleButton);
+
+musicToggleButton.addEventListener('click', toggleBackgroundMusic);
+
 // Start the game loop
 lastFrameTime = performance.now();
 gameLoop(lastFrameTime);
+
 
 
 

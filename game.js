@@ -600,13 +600,14 @@ function handleShoot(event) {
 
     if (event.type === 'click') {
         shootX = event.clientX - rect.left;
-        shootY = event.clientY - rect.top;
     } else if (event.type === 'touchstart') {
         shootX = event.touches[0].clientX - rect.left;
-        shootY = event.touches[0].clientY - rect.top;
     }
 
-    createProjectile(shootX, gameContainer.clientHeight - 50);
+    // Always shoot from the bottom of the game area
+    shootY = gameContainer.clientHeight - 50;
+
+    createProjectile(shootX, shootY);
 }
 
 startButton.addEventListener('click', startGame);
@@ -634,7 +635,7 @@ closeControlsButton.addEventListener('click', () => {
 pauseButton.addEventListener('click', togglePause);
 mainMenuButton.addEventListener('click', backToMainMenu);
 gameContainer.addEventListener('click', handleShoot);
-gameContainer.addEventListener('touchstart', handleShoot);
+gameContainer.addEventListener('touchstart', handleShoot, { passive: false });
 
 gambleMenu.style.display = 'none';
 updateCoins();
@@ -642,5 +643,6 @@ updateCoins();
 // Start the game loop
 lastFrameTime = performance.now();
 gameLoop(lastFrameTime);
+
 
 

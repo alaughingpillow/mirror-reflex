@@ -280,13 +280,14 @@ button:active {
         bottom: 10px;
     }
 }
-
 @media (orientation: portrait) {
     #game-container {
-        width: 100vw; /* Full width of the viewport */
-        height: 100vh; /* Full height of the viewport */
-        transform: none; /* Remove scaling */
+        width: 100vw;
+        height: calc(100vh - 10vh); /* Subtract space to avoid overlaps */
+        margin: auto; /* Center the game container */
+        transform: none;
     }
 }
+
 
 

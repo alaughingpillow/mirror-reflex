@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Cosmic Defenders</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4fc3f7">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    
+    <!-- Preload audio assets -->
+    <link rel="preload" as="audio" href="assets/sounds/coin-collect.mp3">
+    <link rel="preload" as="audio" href="assets/sounds/enemy-hit.mp3">
+    <link rel="preload" as="audio" href="assets/sounds/power-surge.mp3">
+    <link rel="preload" as="audio" href="assets/sounds/background-music-1.mp3">
+    <link rel="preload" as="audio" href="assets/sounds/background-music-2.mp3">
+    <link rel="preload" as="audio" href="assets/sounds/background-music-3.mp3">
+    <link rel="preload" as="audio" href="assets/sounds/background-music-4.mp3">
 </head>
 <body>
     <div id="game-container">
@@ -15,37 +27,99 @@
             <button id="instructions-button">Mission Briefing</button>
             <button id="controls-button">Ship Controls</button>
         </div>
+
         <div id="game-area" style="display: none;">
+            <div id="score">Score: <span id="score-value">0</span></div>
+            <div id="coins">Coins: <span id="coins-value">0</span></div>
+            <div id="divider"></div>
             <div id="player1" class="player"></div>
             <div id="player2" class="player"></div>
-            <div id="divider"></div>
-            <div id="score">Aliens Defeated: <span id="score-value">0</span></div>
-            <div id="coins">Cosmic Coins: <span id="coins-value">0</span></div>
+            <button id="restart-button" style="display: none;">Restart Mission</button>
+            <button id="pause-button">Pause</button>
+            <button id="main-menu-button">Back to Main Menu</button>
             <button id="gamble-button">Power Surge</button>
         </div>
-        <div id="gamble-menu" class="menu" style="display: none;">
-            <h2>Power Surge</h2>
-            <p>Risk 5 cosmic coins for a chance to supercharge your defenses!</p>
-            <button id="gamble-action">Activate (5 coins)</button>
+
+        <div id="gamble-menu" class="menu">
+            <h2>Power Surge Station</h2>
+            <p>Attempt a power surge for 5 coins!</p>
+            <button id="gamble-action">Initiate Surge</button>
             <p id="gamble-result"></p>
-            <button id="close-gamble">Return to Battle</button>
+            <button id="close-gamble">Close</button>
         </div>
-        <div id="instructions-menu" class="menu" style="display: none;">
+
+        <div id="instructions-menu" class="menu">
             <h2>Mission Briefing</h2>
-            <p>Defend Earth from waves of alien invaders. Move your twin ships to avoid collisions and collect cosmic coins for power-ups. The longer you survive, the stronger Earth's defenses become!</p>
-            <button id="close-instructions">Ready for Action</button>
+            <p>Defend Earth from waves of alien invaders. Use your twin defense platforms to shoot down enemies and collect power-ups.</p>
+            <ul>
+                <li>Destroy aliens: +10 points</li>
+                <li>Survive alien passage: +1 point</li>
+                <li>Power-ups give 5 coins</li>
+                <li>Each shot costs 1 coin</li>
+            </ul>
+            <button id="close-instructions">Understood</button>
         </div>
-        <div id="controls-menu" class="menu" style="display: none;">
+
+        <div id="controls-menu" class="menu">
             <h2>Ship Controls</h2>
-            <p>Use your mouse or touch to move both defense ships simultaneously. Left side of the screen controls the left ship, right side controls the right ship.</p>
-            <button id="close-controls">Got It</button>
+            <p>Mouse/Touch Controls:</p>
+            <ul>
+                <li>Move mouse/finger to control defense platforms</li>
+                <li>Click/tap to shoot (costs 1 coin)</li>
+                <li>Left side controls left platform</li>
+                <li>Right side controls right platform</li>
+            </ul>
+            <button id="close-controls">Got it!</button>
         </div>
-        <button id="restart-button" style="display: none;">Relaunch Mission</button>
-        <button id="pause-button" style="display: none;">Pause</button>
-        <button id="main-menu-button" style="display: none;">Return to Base</button>
+
+        <div id="ad-container" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: none;"></div>
     </div>
+
+    <div id="sound-message" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background-color: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; display: none;">
+        Click anywhere to enable sound
+    </div>
+
+    <!-- Load AdMob script asynchronously -->
+    <script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js"></script>
+    <script>
+        window.googletag = window.googletag || {cmd: []};
+        googletag.cmd.push(function() {
+            googletag.defineSlot('/YOUR_AD_UNIT_ID', [300, 250], 'ad-container')
+                     .addService(googletag.pubads());
+            googletag.enableServices();
+        });
+    </script>
+
+    <!-- Initialize sounds before game.js -->
+    <script>
+        // Initialize sound objects before game.js loads
+        window.sounds = {
+            coinCollect: new Audio('./assets/sounds/coin-collect.mp3'),
+            enemyHit: new Audio('./assets/sounds/enemy-hit.mp3'),
+            powerSurge: new Audio('./assets/sounds/power-surge.mp3'),
+            backgroundMusic1: new Audio('./assets/sounds/background-music-1.mp3'),
+            backgroundMusic2: new Audio('./assets/sounds/background-music-2.mp3'),
+            backgroundMusic3: new Audio('./assets/sounds/background-music-3.mp3'),
+            backgroundMusic4: new Audio('./assets/sounds/background-music-4.mp3')
+        };
+    </script>
+
+    <!-- Load game script after DOM and sounds are initialized -->
     <script src="game.js"></script>
+
+    <!-- Register service worker after everything else -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((reg) => console.log('Service worker registered.', reg))
+                    .catch((err) => console.log('Service worker registration failed.', err));
+            });
+        }
+    </script>
 </body>
 </html>
+
+
 
 
